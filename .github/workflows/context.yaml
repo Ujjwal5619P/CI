@@ -54,7 +54,9 @@
 name: Contexts
 
 on:
-    workflow_dispatch:
+    push:
+        branches:
+            - main
 
 env:
     MY_WORKFLOW_VAR: 'workflow'
