@@ -1,0 +1,143 @@
+name: Incident Switchboard
+
+on:
+    push:
+        branches:
+            - main
+    
+    pull_request:
+        branches:
+            - main
+
+    workflow_dispatch:
+        inputs:
+            Severity:
+                description: 'Select the severity of the incident'
+                required: true
+                default: 'Low'
+                type: choice
+                options:
+                    - Low
+                    - Medium
+                    - High
+
+            Deep_Scan:
+                description: 'Should a deep scan be performed?'
+                required: true
+                default: false
+                type: boolean
+
+            Skip_Tests:
+                description: 'Skip automated tests?'
+                required: true
+                default: false
+                type: boolean
+
+            Reason:
+                description: 'Reason for skipping tests (if applicable)'
+                required: false
+                type: string
+
+jobs:
+    triage:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Display event information
+              run: |
+                echo "Event name: ${{ github.event_name }}"
+                echo "Ref: ${{ github.ref_name }}"
+                echo "Run number: ${{ github.run_number }}"
+                echo "Actor: ${{ github.actor }}"
+
+            - name: If By hand
+              if: github.event_name == 'workflow_dispatch'
+              run: |
+                    echo "Severity: ${{ github.event.inputs.Severity }}"
+                    echo "Deep Scan: ${{ github.event.inputs.Deep_Scan }}"
+                    echo "Skip Tests: ${{ github.event.inputs.Skip_Tests }}"
+                    echo "Reason for skipping tests: ${{ github.event.inputs.Reason }}"
+
+            - name: If Automatic
+              if: github.event_name != 'workflow_dispatch'
+              run: |
+                    echo "The run was automatic and no reason was supplied."
+
+            - name: Low Severity
+              if: github.event.inputs.Severity == 'Low'
+              run: echo "This is a low severity incident. Proceeding with standard procedures."
+
+            - name: Medium Severity
+              if: github.event.inputs.Severity == 'Medium'
+              run: echo "This is a medium severity incident. Escalating to the appropriate team."
+
+            - name: High Severity
+              if: github.event.inputs.Severity == 'High'
+              run: echo "This is a high severity incident. Immediate action required!"
+            
+    tests:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v7
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v7
+              with:
+                  node-version: '24.x'
+
+            - name: Install dependencies
+              run: npm ci
+
+            - name: Run tests
+              if: github.event.inputs.Skip_Tests == 'false'
+              run: npm test
+
+            - name: Skip tests message
+              if: github.event.inputs.Skip_Tests == 'true'
+              run: |
+                  echo "Tests were skipped due to the provided reason: ${{ github.event.inputs.Reason }}"
+
+    scan:
+      if: ${{ inputs.deep_scan == true || inputs.Severity == 'High' }}
+      runs-on: ubuntu-latest
+
+      steps:
+        - name: Install jq
+          run: |
+            sudo apt-get update
+            sudo apt-get install -y jq
+
+        - name: Create scan.json
+          run: |
+            jq -n \
+              --arg severity "${{ inputs.severity || 'low' }}" \
+              --argjson deep_scan "${{ inputs.deep_scan || 'false' }}" \
+              --arg actor "${{ github.actor }}" \
+              --argjson run_number "${{ github.run_number }}" \
+              --arg time "$(date -u +'%Y-%m-%dT%H:%M:%SZ')" \
+              '{
+                severity: $severity,
+                deep_scan: $deep_scan,
+                actor: $actor,
+                run_number: $run_number,
+                time_utc: $time
+              }' > scan.json
+
+            cat scan.json
+
+        - name: Read values using jq
+          run: |
+            severity=$(jq -r '.severity' scan.json)
+            actor=$(jq -r '.actor' scan.json)
+
+            echo "Severity: $severity"
+            echo "Actor: $actor"
+    report:
+      if: github.event.inputs.deep_scan == true || github.event.inputs.Skip_Tests == false 
+      runs-on: ubuntu-latest
+      steps:
+          - name: Test and scan report
+            run: |
+                echo "The test is {{ github.event.inputs.Skip_Tests == 'false' && 'not skipped' || 'skipped' }} and the deep scan is ${{ github.event.inputs.Deep_Scan == 'true' && 'enabled' || 'disabled' }}."
+      
+        

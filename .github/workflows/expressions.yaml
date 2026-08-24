@@ -3,10 +3,10 @@ run-name: Using Expressions | DEBUG - ${{ inputs.debug && 'ON' || 'OFF' }}
 
 on:
     workflow_dispatch:
-        inputs:
-            debug:
-                type: boolean
-                default: false
+        # inputs:
+        #     debug:
+        #         type: boolean
+        #         default: false
 jobs:
     echo:
         runs-on: ubuntu-latest
