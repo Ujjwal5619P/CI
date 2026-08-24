@@ -136,7 +136,7 @@ jobs:
             echo "Severity: $severity"
             echo "Actor: $actor"
     report:
-      if: github.event.inputs.Deep_Scan == true || github.event.inputs.Skip_Tests == false 
+      if: ${{ inputs.Deep_Scan == true || inputs.Skip_Tests == false }}
       runs-on: ubuntu-latest
       steps:
           - name: Test and scan report
