@@ -30,4 +30,4 @@ jobs:
       - name: Analyze with SenseTheLog
         uses: sensethelog/action@v1
         with:
-          sensethelog-api-key: ${{ secrets.SENSETHELOG_API_KEY }}   # auth to SenseTheLog's API, separate from GITHUB_TOKEN permissions above
+          sensethelog-api-key: ${{ secrets.TEMP }}   # auth to SenseTheLog's API, separate from GITHUB_TOKEN permissions above
